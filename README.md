@@ -219,16 +219,16 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 指定头文件目录
-include_directories(${PROJECT_SOURCE_DIR}/include)
+link_directories(${CMAKE_SOURCE_DIR}/lib)
 
 # 指定库文件目录
-link_directories(${PROJECT_SOURCE_DIR}/lib)
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # 添加可执行文件
-add_executable(demo src/main.cpp)
+add_executable(${PROJECT_NAME} main.cpp)
 
 # 链接静态库
-target_link_libraries(demo enhanced)
+target_link_libraries(${PROJECT_NAME} enhanced_vector.a)
 ```
 
 ## 未来改进方向
