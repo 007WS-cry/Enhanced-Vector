@@ -16,5 +16,8 @@ CMakeLists.txt
 *.o
 *.out
 
+# 临时文件
+temp.hpp
+
 # 项目代码压缩包
 *.zip

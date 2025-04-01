@@ -1,21 +1,3 @@
-/**
-* 文件名: enhanced_vector.hpp
- * 项目名称: enhanced_vector
- * 文件创建日期: 2025-02-25
- * 作者: 007WS
- * 联系方式: a2901805528@163.com
- *
- * 最后编辑日期: 2025-03-24
- * 最后编辑者: 007WS
- * 最后编辑者联系方式: a2901805528@163.com
- *
- * 文件描述:
- * C++ STL vector 扩展版本（大学生练手项目）
- *
- * 许可证:
- * 无
- */
-
 #ifndef ENHANCED_VECTOR_HPP
 #define ENHANCED_VECTOR_HPP
 
@@ -24,6 +6,8 @@
 #include <vector>
 #include <stdexcept>
 #include <iostream>
+#include <memory>
+#include <algorithm>
 
 namespace enhanced {
 
@@ -81,21 +65,19 @@ public:
             tmp++;
         }
         _capacity = (1 << tmp);
-        _data = new Type[_capacity];
-        std::copy(first, last, _data);
+        _data = std::make_unique<Type[]>(_capacity);
+        std::copy(first, last, _data.get());
         if (std::is_integral_v<Type> || std::is_floating_point_v<Type>) {
             _check = true;
-            _sum = new Type;
-            _mean = new Type;
-            for (auto &x: _data) {
-                *_sum += x;
+            _sum = std::make_unique<Type>(0);
+            _mean = std::make_unique<Type>(0);
+            for (size_t i = 0; i < _size; ++i) {
+                *_sum += _data[i];
             }
             *_mean = *_sum / _size;
         }
         else {
             _check = false;
-            _sum = nullptr;
-            _mean = nullptr;
         }
     }
 
@@ -106,17 +88,24 @@ public:
             tmp++;
         }
         _capacity = (1 << tmp);
-        _data = new Type[_capacity];
-        std::fill(_data, _data + _size, value);
+        _data = std::make_unique<Type[]>(_capacity);
+        std::fill(_data.get(), _data.get() + _size, value);
         if (std::is_integral_v<Type> || std::is_floating_point_v<Type>) {
             _check = true;
-            _sum = new Type;
-            _mean = new Type;
+            _sum = std::make_unique<Type>(0);
+            _mean = std::make_unique<Type>(0);
+            for (size_t i = 0; i < _size; ++i) {
+                *_sum += _data[i];
+            }
+            if (_size == 0) {
+                *_mean = 0;
+            }
+            else {
+                *_mean = *_sum / _size;
+            }
         }
         else {
             _check = false;
-            _sum = nullptr;
-            _mean = nullptr;
         }
     }
 
@@ -124,100 +113,46 @@ public:
         _size = other._size;
         _capacity = other._capacity;
         _check = other._check;
-        _data = new Type[_capacity];
-        std::copy(other._data, other._data + _size, _data);
+        _data = std::make_unique<Type[]>(_capacity);
+        std::copy(other._data.get(), other._data.get() + _size, _data.get());
         if (_check) {
-            _sum = new Type(*other._sum);
-            _mean = new Type(*other._mean);
-        } else {
-            _sum = nullptr;
-            _mean = nullptr;
+            _sum = std::make_unique<Type>(*other._sum);
+            _mean = std::make_unique<Type>(*other._mean);
         }
     }
 
-    enhanced_vector(enhanced_vector &&other) noexcept {
-        _size = other._size;
-        _capacity = other._capacity;
-        _check = other._check;
-        _data = other._data;
-        _sum = other._sum;
-        _mean = other._mean;
-
-        other._size = 0;
-        other._capacity = 0;
-        other._data = nullptr;
-        other._sum = nullptr;
-        other._mean = nullptr;
-    }
+    enhanced_vector(enhanced_vector &&other) noexcept = default;
 
     enhanced_vector& operator=(const enhanced_vector &other) {
         if (this != &other) {
-            delete[] _data;
-            if (_check) {
-                delete _sum;
-                delete _mean;
-            }
-
             _size = other._size;
             _capacity = other._capacity;
             _check = other._check;
-
-            _data = new Type[_capacity];
-            std::copy(other._data, other._data + _size, _data);
-
+            _data = std::make_unique<Type[]>(_capacity);
+            std::copy(other._data.get(), other._data.get() + _size, _data.get());
             if (_check) {
-                _sum = new Type(*other._sum);
-                _mean = new Type(*other._mean);
-            } else {
-                _sum = nullptr;
-                _mean = nullptr;
+                _sum = std::make_unique<Type>(*other._sum);
+                _mean = std::make_unique<Type>(*other._mean);
             }
         }
         return *this;
     }
 
-    enhanced_vector& operator=(enhanced_vector &&other) noexcept {
-        if (this != &other) {  // 避免自我赋值
-            // 释放当前资源
-            delete[] _data;
-            if (_check) {
-                delete _sum;
-                delete _mean;
-            }
-            _size = other._size;
-            _capacity = other._capacity;
-            _check = other._check;
-            _data = other._data;
-            _sum = other._sum;
-            _mean = other._mean;
-            other._size = 0;
-            other._capacity = 0;
-            other._data = nullptr;
-            other._sum = nullptr;
-            other._mean = nullptr;
-        }
-        return *this;
-    }
+    enhanced_vector& operator=(enhanced_vector &&other) noexcept = default;
 
-    ~enhanced_vector() {
-        delete[] _data;
-        if (_check) {
-            delete _sum;
-            delete _mean;
-        }
-    }
+    ~enhanced_vector() = default;
 
     iterator begin() const {
-        return iterator(_data);
+        return iterator(_data.get());
     }
     iterator end() const {
-        return iterator(_data + _size);
+        return iterator(_data.get() + _size);
     }
     const_iterator cbegin() const {
-        return const_iterator(_data);
+        return const_iterator(_data.get());
     }
     const_iterator cend() const {
-        return const_iterator(_data + _size);
+        return const_iterator(_data.get() + _size);
     }
     reverse_iterator rbegin() const {
         return reverse_iterator(end());
@@ -249,7 +184,7 @@ public:
         }
         if (_check) {
             *_sum -= _data[_size - 1];
-            *_mean = *_sum / _size;
+            *_mean = *_sum / (_size - 1);
         }
         _size--;
     }
@@ -258,7 +193,7 @@ public:
         if (_size == _capacity) {
             addCapacity(_size + 1);
         }
-        std::copy(_data, _data + _size, _data + 1);
+        std::copy_backward(_data.get(), _data.get() + _size, _data.get() + _size + 1);
         _data[0] = value;
         _size++;
         if (_check) {
@@ -271,20 +206,21 @@ public:
         if (_size == 0) {
             throw std::runtime_error("Error: vector is empty.");
         }
-        _size--;
         if (_check) {
-            *sum -= _data[0];
-            *_mean = *_sum / _size;
+            *_sum -= _data[0];
+            *_mean = *_sum / (_size - 1);
         }
-        std::copy(_data + 1, _data + _size, _data);
+        std::copy(_data.get() + 1, _data.get() + _size, _data.get());
+        _size--;
     }
 
     void insert(iterator pos, const Type &value) {
-        if (std::max(pos, _size + 1) >= _capacity) {
-            addCapacity(std::max(pos, _size + 1));
+        size_t index = pos - begin();
+        if (_size == _capacity) {
+            addCapacity(_size + 1);
         }
-        std::copy(pos, _data + _size, pos + 1);
-        _data[pos] = value;
+        std::copy_backward(_data.get() + index, _data.get() + _size, _data.get() + _size + 1);
+        _data[index] = value;
         _size++;
         if (_check) {
             *_sum += value;
@@ -293,29 +229,33 @@ public:
     }
 
     void erase(iterator pos) {
-        if (pos >= _size) {
+        size_t index = pos - begin();
+        if (index >= _size) {
             throw std::runtime_error("Error: index out of range.");
         }
         if (_check) {
-            *_sum -= _data[pos];
+            *_sum -= _data[index];
             *_mean = *_sum / (_size - 1);
         }
-        std::copy(pos + 1, _data + _size, pos);
+        std::copy(_data.get() + index + 1, _data.get() + _size, _data.get() + index);
         _size--;
     }
 
     void erase(iterator first, iterator last) {
-        if (_size <= std::distance(first, last)) {
+        size_t first_idx = first - begin();
+        size_t last_idx = last - begin();
+        if (last_idx > _size) {
             throw std::runtime_error("Error: index out of range.");
         }
+        size_t count = last_idx - first_idx;
         if (_check) {
-            for (auto &x: std::vector<Type>(first, last)) {
-                *_sum -= x;
-                *_mean = *_sum / (_size - std::distance(first, last));
+            for (size_t i = first_idx; i < last_idx; ++i) {
+                *_sum -= _data[i];
             }
+            *_mean = *_sum / (_size - count);
         }
-        std::copy(last, _data + _size, first);
-        _size -= std::distance(first, last);
+        std::copy(_data.get() + last_idx, _data.get() + _size, _data.get() + first_idx);
+        _size -= count;
     }
 
     void clear() {
@@ -336,8 +276,9 @@ public:
     enhanced_vector operator+(const enhanced_vector &other) const {
         if (!_check) {
             enhanced_vector res_vector(_size + other._size);
-            std::copy(_data, _data + _size, res_vector._data);
-            std::copy(other._data, other._data + other._size, res_vector._data + _size);
+            std::copy(_data.get(), _data.get() + _size, res_vector._data.get());
+            std::copy(other._data.get(), other._data.get() + other._size,
+                     res_vector._data.get() + _size);
             return res_vector;
         }
         if (other._size != _size) {
@@ -347,12 +288,12 @@ public:
         res_vector._size = _size;
         res_vector._capacity = _capacity;
         res_vector._check = _check;
-        res_vector._data = new Type[_capacity];
-        res_vector._sum = new Type(*this->_sum + *other._sum);
+        res_vector._data = std::make_unique<Type[]>(_capacity);
+        res_vector._sum = std::make_unique<Type>(*_sum + *other._sum);
         for (int i = 0; i < _size; i++) {
             res_vector._data[i] = _data[i] + other._data[i];
         }
-        res_vector._mean = new Type(*res_vector._sum / res_vector._size);
+        res_vector._mean = std::make_unique<Type>(*res_vector._sum / res_vector._size);
         return res_vector;
     }
 
@@ -367,12 +308,12 @@ public:
         res_vector._size = _size;
         res_vector._capacity = _capacity;
         res_vector._check = _check;
-        res_vector._data = new Type[_capacity];
-        res_vector._sum = new Type(*this->_sum - *other._sum);
+        res_vector._data = std::make_unique<Type[]>(_capacity);
+        res_vector._sum = std::make_unique<Type>(*_sum - *other._sum);
         for (int i = 0; i < _size; i++) {
             res_vector._data[i] = _data[i] - other._data[i];
         }
-        res_vector._mean = new Type(*res_vector._sum / res_vector._size);
+        res_vector._mean = std::make_unique<Type>(*res_vector._sum / res_vector._size);
         return res_vector;
     }
 
@@ -383,7 +324,7 @@ public:
         if (!_check) {
             throw std::runtime_error("Error: invalid operation.");
         }
-        Type res{};  // 正确初始化
+        Type res{};
         for (int i = 0; i < _size; i++) {
             res += _data[i] * other._data[i];
         }
@@ -450,13 +391,10 @@ public:
         if (_size + other._size >= _capacity) {
             addCapacity(_size + other._size + 1);
         }
-        std::copy(other._data, other._data + other._size, _data + _size);
+        std::copy(other._data.get(), other._data.get() + other._size,
+                 _data.get() + _size);
         _size += other._size;
         return *this;
-    }
-
-    enhanced_vector &operator>=(const enhanced_vector &other) {
-        return (*this > other) || (*this == other);
     }
 
     [[nodiscard]] int size() const {
@@ -470,41 +408,40 @@ public:
     }
 
     void resize(const int &new_size) {
-        delete[] _data;
-        int tmp = 5;
-        while ((1 << tmp) <= new_size) {
-            tmp++;
-        }
-        _capacity = 1 << tmp;
-        _data = new Type[_capacity];
+        auto new_data = std::make_unique<Type[]>(new_size);
+        std::copy(_data.get(), _data.get() + std::min(_size, new_size), new_data.get());
+        _data = std::move(new_data);
         _size = new_size;
+        _capacity = new_size;
     }
 
     void resize(const int &new_size, const Type &value) {
-        delete[] _data;
-        int tmp = 5;
-        while ((1 << tmp) <= new_size) {
-            tmp++;
+        auto new_data = std::make_unique<Type[]>(new_size);
+        std::copy(_data.get(), _data.get() + std::min(_size, new_size), new_data.get());
+        if (new_size > _size) {
+            std::fill(new_data.get() + _size, new_data.get() + new_size, value);
         }
-        _capacity = 1 << tmp;
-        _data = new Type[_capacity];
+        _data = std::move(new_data);
         _size = new_size;
-        std::fill(_data, _data + _size, value);
+        _capacity = new_size;
     }
 
     void reserve(const int &new_capacity) {
-        delete[] _data;
+        if (new_capacity <= _capacity) return;
+
+        auto new_data = std::make_unique<Type[]>(new_capacity);
+        std::copy(_data.get(), _data.get() + _size, new_data.get());
+        _data = std::move(new_data);
         _capacity = new_capacity;
-        _data = new Type[_capacity];
-        _size = 0;
     }
 
     void shrink_to_fit() {
-        enhanced_vector<Type> tmp_vec;
-        tmp_vec._data = _data;
-        tmp_vec._size = _size;
-        tmp_vec._capacity = _size;
-        *this = tmp_vec;
+        if (_size == _capacity) return;
+
+        auto new_data = std::make_unique<Type[]>(_size);
+        std::copy(_data.get(), _data.get() + _size, new_data.get());
+        _data = std::move(new_data);
+        _capacity = _size;
     }
 
     Type front() const {
@@ -522,27 +459,26 @@ public:
     }
 
     void assign(iterator first, iterator last) {
-        delete[] _data;
+        size_t new_size = std::distance(first, last);
         int tmp = 5;
-        while ((1 << tmp) <= std::distance(first, last)) {
+        while ((1 << tmp) <= new_size) {
             tmp++;
         }
         _capacity = 1 << tmp;
-        _data = new Type[_capacity];
-        _size = std::distance(first, last);
-        std::copy(first, last, _data);
+        _data = std::make_unique<Type[]>(_capacity);
+        _size = new_size;
+        std::copy(first, last, _data.get());
     }
 
     void assign(const int &size, const Type &value) {
-        delete[] _data;
         int tmp = 5;
         while ((1 << tmp) <= size) {
             tmp++;
         }
         _capacity = 1 << tmp;
-        _data = new Type[_capacity];
+        _data = std::make_unique<Type[]>(_capacity);
         _size = size;
-        std::fill(_data, _data + _size, value);
+        std::fill(_data.get(), _data.get() + _size, value);
     }
 
     void print(iterator first, iterator last) const {
@@ -587,27 +523,22 @@ private:
     int _size;
     int _capacity;
     bool _check;
-    Type *_data;
-    Type *_sum;
-    Type *_mean;
+    std::unique_ptr<Type[]> _data;
+    std::unique_ptr<Type> _sum;
+    std::unique_ptr<Type> _mean;
+
     void addCapacity(const int &new_size) {
-        Type *_temp_data;
-        std::copy(_data, _data + _size, _temp_data);
+        auto temp_data = std::make_unique<Type[]>(_size);
+        std::copy(_data.get(), _data.get() + _size, temp_data.get());
+
         int tmp = 5;
         while ((1 << tmp) <= new_size) {
             tmp++;
         }
-        delete[] _data;
         _capacity = (1 << tmp);
-        try {
-            _data = new Type[_capacity];
-        }
-        catch (std::bad_alloc &e) {
-            std::cerr << e.what() << std::endl;
-            exit(1);
-        }
-        std::copy(_temp_data, _temp_data + _size, _data);
-        delete[] _temp_data;
+
+        _data = std::make_unique<Type[]>(_capacity);
+        std::copy(temp_data.get(), temp_data.get() + _size, _data.get());
     }
 };
 
