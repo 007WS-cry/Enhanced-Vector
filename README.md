@@ -1,3 +1,49 @@
+## 本次更新介绍
+
+本次更新主要引入了智能指针（`std::unique_ptr`）来管理内存，替代了原来的手动内存管理方式，具体更新点如下：
+
+### 1. 内存管理改进
+- 使用 `std::unique_ptr<Type[]>` 来管理 `_data` 数组，确保在对象生命周期结束时自动释放内存，避免了手动 `delete[]` 可能带来的内存泄漏问题。
+- 同样使用 `std::unique_ptr<Type>` 来管理 `_sum` 和 `_mean` 指针，保证在对象析构时自动释放内存。
+
+### 2. 代码简化与安全性提升
+- 智能指针的使用简化了析构函数、拷贝构造函数和赋值运算符的实现，避免了手动内存管理的复杂性。
+- 自动内存释放机制提高了代码的安全性，减少了因忘记释放内存而导致的潜在错误。
+
+### 3. 示例代码更新
+以下是部分使用智能指针更新后的代码示例：
+
+```cpp
+// 构造函数中使用智能指针初始化 _data
+explicit enhanced_vector(const int &size = 0, const Type &value = Type()) {
+    _size = size;
+    int tmp = 5;
+    while ((1 << tmp) <= _size) {
+        tmp++;
+    }
+    _capacity = (1 << tmp);
+    _data = std::make_unique<Type[]>(_capacity);
+    std::fill(_data.get(), _data.get() + _size, value);
+    if (std::is_integral_v<Type> || std::is_floating_point_v<Type>) {
+        _check = true;
+        _sum = std::make_unique<Type>(0);
+        _mean = std::make_unique<Type>(0);
+        for (size_t i = 0; i < _size; ++i) {
+            *_sum += _data[i];
+        }
+        if (_size == 0) {
+            *_mean = 0;
+        }
+        else {
+            *_mean = *_sum / _size;
+        }
+    }
+    else {
+        _check = false;
+    }
+}
+```
+
 # Enhanced Vector
 
 ## 简介
